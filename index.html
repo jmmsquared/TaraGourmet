@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0033A0">
+<title>TaraGourmet</title>
+<link rel="manifest" href="manifest.json">
+<style>
+  :root{
+    --primary:#0033A0;
+    --primary-dark:#00246e;
+    --ink:#1b2430;
+    --ink-soft:#5b6472;
+    --bg:#f5f6f8;
+    --card:#ffffff;
+    --line:#e3e6ec;
+    --precook-bg:#FFFBEA; --precook-border:#E6A817;
+    --alert-bg:#FEF3EE; --alert-border:#C8401A;
+    --done-bg:#EAF3DE; --done-border:#5C8A2E;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    font-family:-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+    -webkit-tap-highlight-color:transparent;
+    overscroll-behavior-y:none;
+  }
+  #statusfill{
+    height:env(safe-area-inset-top,0px);
+    background:var(--primary);
+  }
+  #app{
+    max-width:520px;
+    margin:0 auto;
+    min-height:100vh;
+    background:var(--bg);
+    display:flex;
+    flex-direction:column;
+    position:relative;
+  }
+  /* ---------- Nav header ---------- */
+  .navheader{
+    background:var(--primary);
+    color:#fff;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:10px 8px;
+    position:sticky;
+    top:0;
+    z-index:20;
+  }
+  .navheader .navtitle{
+    font-weight:700;
+    font-size:17px;
+    flex:1;
+    text-align:center;
+    letter-spacing:.2px;
+  }
+  .navbtn{
+    background:rgba(255,255,255,.14);
+    border:none;
+    color:#fff;
+    min-width:44px;
+    min-height:44px;
+    border-radius:12px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:20px;
+    cursor:pointer;
+  }
+  .navbtn:active{background:rgba(255,255,255,.3);}
+  .navspacer{min-width:44px;}
+
+  /* ---------- Screen 1 ---------- */
+  .brandbar{
+    background:var(--primary);
+    color:#fff;
+    padding:18px 16px 22px;
+  }
+  .brandbar h1{
+    margin:0;
+    font-size:26px;
+    font-weight:800;
+    letter-spacing:.3px;
+  }
+  .brandbar p{margin:4px 0 0; opacity:.85; font-size:13px;}
+  .content{padding:14px 14px 90px;}
+  .searchwrap{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:14px;
+    display:flex;
+    align-items:center;
+    padding:0 12px;
+    height:46px;
+    margin-top:-24px;
+    box-shadow:0 4px 14px rgba(0,0,0,.06);
+  }
+  .searchwrap input{
+    border:none; outline:none; flex:1; font-size:16px; padding:0 8px; background:transparent; color:var(--ink);
+  }
+  .guestrow{
+    display:flex; align-items:center; justify-content:space-between;
+    background:var(--card); border:1px solid var(--line); border-radius:14px;
+    padding:10px 14px; margin-top:12px;
+  }
+  .guestrow .label{font-size:14px; font-weight:600; color:var(--ink-soft);}
+  .stepper{display:flex; align-items:center; gap:10px;}
+  .stepper button{
+    width:36px;height:36px;border-radius:10px;border:none;
+    background:var(--primary); color:#fff; font-size:20px; font-weight:700; cursor:pointer;
+  }
+  .stepper button:active{background:var(--primary-dark);}
+  .stepper .count{font-size:18px; font-weight:700; min-width:28px; text-align:center;}
+  .listhead{
+    margin:20px 0 8px; font-size:12px; font-weight:700; letter-spacing:.08em;
+    text-transform:uppercase; color:var(--ink-soft);
+  }
+  .recipe-row{
+    background:var(--card); border:1px solid var(--line); border-radius:14px;
+    padding:12px 14px; margin-bottom:10px; cursor:pointer;
+  }
+  .recipe-row:active{background:#eef1f6;}
+  .recipe-row .rname{font-size:16px; font-weight:700;}
+  .recipe-row .rmeta{font-size:12.5px; color:var(--ink-soft); margin-top:3px;}
+  .recipe-row .rnote{font-size:13px; color:var(--ink-soft); margin-top:6px; font-style:italic;}
+  .empty-state{
+    text-align:center; padding:40px 16px; color:var(--ink-soft);
+  }
+  .empty-state button{margin-top:14px;}
+  .btn{
+    border:none; border-radius:12px; padding:12px 18px; font-size:15px; font-weight:700;
+    cursor:pointer; min-height:44px;
+  }
+  .btn-primary{background:var(--primary); color:#fff;}
+  .btn-primary:active{background:var(--primary-dark);}
+  .fab{
+    position:fixed; right:calc(50% - 260px + 18px); bottom:22px; z-index:30;
+    width:56px; height:56px; border-radius:28px; background:var(--primary); color:#fff;
+    border:none; font-size:28px; box-shadow:0 6px 18px rgba(0,51,160,.4); cursor:pointer;
+  }
+  @media (max-width:560px){ .fab{right:18px;} }
+
+  /* ---------- Screen 2 (recipe card) ---------- */
+  .card-hero{background:var(--primary); color:#fff; padding:16px 16px 20px;}
+  .card-hero .rname{font-size:22px; font-weight:800;}
+  .card-hero .rmeta{margin-top:6px; font-size:13px; opacity:.9;}
+  .section-title{
+    font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--ink-soft); margin:22px 0 8px;
+  }
+  .desc{font-size:14.5px; line-height:1.5; color:var(--ink);}
+  .ingredient-line{
+    display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid var(--line); font-size:14.5px;
+  }
+  .ingredient-line .amt{font-weight:700; color:var(--primary); white-space:nowrap; margin-left:10px;}
+  .totalcook{
+    background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px 14px;
+    font-size:14px; font-weight:600; display:flex; justify-content:space-between; align-items:center;
+  }
+  .step-card{
+    background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px 14px; margin-bottom:10px;
+  }
+  .step-card .stepnum{
+    display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:7px;
+    background:var(--primary); color:#fff; font-size:12.5px; font-weight:800; margin-right:8px;
+  }
+  .step-card .stepwhen{font-size:12.5px; color:var(--ink-soft); font-weight:600;}
+  .step-card .stepitems{margin-top:8px;}
+  .step-card .stepitem{font-size:14.5px; padding:4px 0;}
+  .step-card .stepitem .amt{font-weight:700; color:var(--primary);}
+  .step-card .prepnote{font-size:12.5px; color:var(--ink-soft); font-style:italic;}
+  .step-card .cooklen{font-size:12px; color:var(--ink-soft); margin-top:6px;}
+  .special-notes{
+    background:#FFF7EC; border:1px solid #F0D8AE; border-radius:12px; padding:12px 14px; font-size:13.5px; line-height:1.5;
+  }
+  .cookbtn-wrap{
+    position:sticky; bottom:0; padding:14px; background:linear-gradient(to top, var(--bg) 60%, transparent);
+  }
+  .cookbtn{
+    width:100%; background:#C8401A; color:#fff; border:none; border-radius:14px; padding:16px; font-size:17px; font-weight:800;
+    box-shadow:0 6px 16px rgba(200,64,26,.35); cursor:pointer;
+  }
+  .cookbtn:active{background:#a53415;}
+
+  /* ---------- Screen 3 (edit) ---------- */
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-size:12.5px; font-weight:700; color:var(--ink-soft); margin-bottom:5px; text-transform:uppercase; letter-spacing:.04em;}
+  .field input[type=text], .field input[type=number], .field textarea, .field select{
+    width:100%; border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-size:15px;
+    font-family:inherit; background:var(--card); color:var(--ink);
+  }
+  .field textarea{resize:vertical; min-height:70px;}
+  .row2{display:flex; gap:10px;}
+  .row2 .field{flex:1;}
+  .ing-editor{
+    background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px; margin-bottom:10px; position:relative;
+  }
+  .ing-editor .remove-ing{
+    position:absolute; top:8px; right:8px; background:none; border:none; color:#C8401A; font-size:18px; cursor:pointer;
+    width:32px;height:32px;
+  }
+  .add-ing-btn{
+    width:100%; border:2px dashed var(--line); border-radius:12px; background:transparent; color:var(--primary);
+    padding:12px; font-weight:700; cursor:pointer; margin-bottom:16px;
+  }
+  .footer-actions{
+    display:flex; align-items:center; gap:14px; padding:16px 14px 30px;
+  }
+  .save-btn{flex:1;}
+  .save-btn{background:#3E8E41; color:#fff;}
+  .save-btn:active{background:#2f6f32;}
+  .delete-btn{
+    width:44px; height:44px; border-radius:22px; background:#C8401A; color:#fff; border:none; font-size:18px; cursor:pointer;
+  }
+  .modal-backdrop{
+    position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; z-index:100; padding:24px;
+  }
+  .modal{background:#fff; border-radius:16px; padding:20px; max-width:340px; width:100%;}
+  .modal h3{margin:0 0 8px;}
+  .modal p{font-size:14px; color:var(--ink-soft); margin:0 0 18px;}
+  .modal .modal-actions{display:flex; gap:10px;}
+  .modal .modal-actions button{flex:1;}
+  .btn-secondary{background:#eceff3; color:var(--ink);}
+
+  /* ---------- Screen 4 (cook) ---------- */
+  .cookheader{
+    background:var(--primary-dark); color:#fff; padding:14px 16px 18px; text-align:center;
+  }
+  .clock{font-size:44px; font-weight:800; letter-spacing:1px; font-variant-numeric:tabular-nums;}
+  .clock-label{font-size:11px; opacity:.75; text-transform:uppercase; letter-spacing:.1em;}
+  .banner{
+    margin:14px; border-radius:14px; padding:14px; border:1.5px solid; position:relative;
+  }
+  .banner.precook{background:var(--precook-bg); border-color:var(--precook-border);}
+  .banner.alert{background:var(--alert-bg); border-color:var(--alert-border); animation:pulse 1.2s ease-in-out 2;}
+  .banner.done{background:var(--done-bg); border-color:var(--done-border);}
+  @keyframes pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.015);}}
+  .banner .btitle{font-weight:800; font-size:14px; margin-bottom:8px; text-transform:uppercase; letter-spacing:.04em;}
+  .banner .bitem{font-size:15px; padding:3px 0;}
+  .banner .bitem .amt{font-weight:700;}
+  .banner button{width:100%; margin-top:10px; padding:13px; border:none; border-radius:10px; font-weight:800; font-size:15px; cursor:pointer;}
+  .banner.precook button{background:var(--precook-border); color:#fff;}
+  .banner.alert button{background:var(--alert-border); color:#fff;}
+  .nextup{
+    margin:0 14px 14px; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px 14px;
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .nextup .nlabel{font-size:11px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.06em; font-weight:700;}
+  .nextup .nname{font-size:14.5px; font-weight:700; margin-top:2px;}
+  .nextup .ncount{font-size:20px; font-weight:800; color:var(--primary); font-variant-numeric:tabular-nums;}
+  .livelist{margin:0 14px;}
+  .livestep{
+    display:flex; justify-content:space-between; align-items:center; background:var(--card);
+    border:1px solid var(--line); border-radius:12px; padding:10px 14px; margin-bottom:8px; font-size:14px;
+  }
+  .livestep.added{opacity:.5;}
+  .livestep .lname{font-weight:600;}
+  .livestep .lwhen{color:var(--ink-soft); font-size:12.5px; font-variant-numeric:tabular-nums;}
+  .chefnote{
+    margin:20px 14px 10px; text-align:center; font-size:13px; font-style:italic; color:var(--ink-soft); line-height:1.5;
+  }
+  .stopbtn-wrap{padding:6px 14px 30px;}
+  .stopbtn{
+    width:100%; background:#fff; color:#C8401A; border:2px solid #C8401A; border-radius:14px; padding:14px;
+    font-weight:800; font-size:15px; cursor:pointer;
+  }
+  .badge-servings{
+    display:inline-block; background:rgba(255,255,255,.16); border-radius:8px; padding:2px 8px; font-size:12px; margin-left:6px;
+  }
+</style>
+</head>
+<body>
+<div id="statusfill"></div>
+<div id="app"></div>
+
+<script>
+/* ============================================================
+   TaraGourmet — mobile-first recipe & guided-cooking app
+   Data store: localStorage today (drop-in shape for Firebase later)
+   ============================================================ */
+
+const STORAGE_KEY = 'taragourmet_recipes_v1';
+const GUEST_KEY = 'taragourmet_guest_count_v1';
+
+const UNIT_LABELS = {
+  '': '', g:'g', kg:'kg', ml:'ml', l:'l', tsp:'tsp', tbsp:'tbsp',
+  cup:'cup', fl_oz:'fl oz', oz:'oz', lb:'lb', pinch:'pinch'
+};
+const ROUND_MAP = {
+  '':1, g:5, kg:0.1, ml:5, l:0.1, tsp:0.25, tbsp:0.5, cup:0.25, fl_oz:0.5, oz:0.5, lb:0.25, pinch:1
+};
+const FRACTIONS = [
+  [0.0625,'⅟₁₆'],[0.125,'⅛'],[0.1875,'³⁄₁₆'],[0.25,'¼'],[0.333,'⅓'],
+  [0.375,'⅜'],[0.5,'½'],[0.625,'⅝'],[0.667,'⅔'],[0.75,'¾'],[0.875,'⅞']
+];
+const CATEGORIES = [
+  {id:'entree',label:'Entrée'},{id:'sideDish',label:'Side Dish'},{id:'salad',label:'Salad'},
+  {id:'dessert',label:'Dessert'},{id:'cocktail',label:'Cocktail'},{id:'other',label:'Other'}
+];
+
+/* ---------------- Seed data ---------------- */
+function seedRecipes(){
+  return [
+    {
+      id:'r-shrimp-boil', name:'Low-Country Shrimp Boil', category:'entree',
+      prepTime:15, numServings:4,
+      shortNote:'One-pot classic, timed to the minute',
+      description:'A single stockpot of corn, potatoes, sausage and shrimp, added in order so everything finishes together.',
+      ingredients:[
+        {id:'i1', name:'Old Bay seasoning', amount:2, unit:'tbsp', cookTime:0, prepNotes:'Stir into the boiling water'},
+        {id:'i2', name:'lemon, halved', amount:0.5, unit:'', cookTime:0, prepNotes:'Squeeze in, drop the halves'},
+        {id:'i3', name:'baby potatoes', amount:0.5, unit:'lb', cookTime:15, prepNotes:'Scrubbed, left whole'},
+        {id:'i4', name:'smoked sausage, sliced', amount:0.25, unit:'lb', cookTime:8, prepNotes:'Cut into 1-inch rounds'},
+        {id:'i5', name:'corn on the cob, halved', amount:0.5, unit:'', cookTime:6, prepNotes:''},
+        {id:'i6', name:'large shrimp, shell-on', amount:0.33, unit:'lb', cookTime:3, prepNotes:'Deveined'}
+      ],
+      instructions:'Bring a large pot of water to a rolling boil before starting the timer. Add ingredients at the marked times, keeping the boil steady throughout. Drain and serve over newspaper or a sheet pan with extra Old Bay and lemon wedges.',
+      specialNotes:'At elevations above 5,000 ft, water boils cooler — add 2–3 minutes to the potatoes. To thicken the finishing butter, whisk in a cornstarch slurry off heat; to thin it, add a splash of the cooking liquid.'
+    },
+    {
+      id:'r-pasta-primavera', name:'Weeknight Pasta Primavera', category:'entree',
+      prepTime:10, numServings:4,
+      shortNote:'Bright, veg-forward, ready in 20',
+      description:'Pasta and quick-cooking vegetables cooked in the same pot, staggered so nothing turns to mush.',
+      ingredients:[
+        {id:'i1', name:'kosher salt', amount:1, unit:'tbsp', cookTime:0, prepNotes:'For the pasta water'},
+        {id:'i2', name:'penne pasta', amount:3, unit:'oz', cookTime:11, prepNotes:''},
+        {id:'i3', name:'broccoli florets', amount:0.5, unit:'cup', cookTime:4, prepNotes:'Bite-sized'},
+        {id:'i4', name:'cherry tomatoes, halved', amount:0.25, unit:'cup', cookTime:2, prepNotes:''},
+        {id:'i5', name:'baby spinach', amount:0.5, unit:'cup', cookTime:1, prepNotes:'Packed'},
+        {id:'i6', name:'grated parmesan', amount:2, unit:'tbsp', cookTime:0, prepNotes:'Finish off heat, not in the pot'}
+      ],
+      instructions:'Salt the pasta water and bring to a rolling boil. Add ingredients at the marked times. Reserve a splash of pasta water before draining, then toss with olive oil and parmesan.',
+      specialNotes:'To thin the sauce, splash in reserved pasta water a tablespoon at a time. Swap in whatever quick-cooking vegetables are on hand — just match their cook time to the slots above.'
+    }
+  ];
+}
+
+/* ---------------- Data layer ---------------- */
+function loadRecipes(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw){
+      const seeded = seedRecipes();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(seeded));
+      return seeded;
+    }
+    return JSON.parse(raw);
+  }catch(e){ return seedRecipes(); }
+}
+function saveRecipes(list){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+}
+
+/* ---------------- App state ---------------- */
+let state = {
+  screen: 'index',            // index | card | edit | cook
+  recipes: loadRecipes(),
+  guestCount: parseInt(localStorage.getItem(GUEST_KEY) || '4', 10),
+  searchQuery: '',
+  currentRecipeId: null,
+  editMode: 'new',            // new | edit
+  editingId: null,
+  draft: null,
+  confirmDelete: false,
+  cook: null
+};
+
+function uid(prefix){ return prefix + '-' + Math.random().toString(36).slice(2,9); }
+
+/* ---------------- Quantity helpers ---------------- */
+function roundQty(raw, unit){
+  const r = ROUND_MAP[unit] !== undefined ? ROUND_MAP[unit] : 1;
+  let q = Math.round(raw / r) * r;
+  if(q < r) q = r;
+  return Math.round(q * 10000) / 10000;
+}
+function formatQty(q, unit){
+  const whole = Math.floor(q + 1e-6);
+  let frac = q - whole;
+  let fracStr = '';
+  if(frac > 0.02){
+    let best = FRACTIONS[0], bestDiff = Infinity;
+    FRACTIONS.forEach(([val,sym])=>{
+      const diff = Math.abs(val - frac);
+      if(diff < bestDiff){ bestDiff = diff; best = [val,sym]; }
+    });
+    fracStr = best[1];
+  }
+  let numStr;
+  if(whole === 0 && fracStr) numStr = fracStr;
+  else if(fracStr) numStr = whole + fracStr;
+  else numStr = String(whole);
+  const label = UNIT_LABELS[unit] || unit;
+  return label ? (numStr + ' ' + label) : numStr;
+}
+function scaledQtyLabel(ing, guests){
+  const raw = (ing.amount || 0) * guests;
+  const q = roundQty(raw, ing.unit || '');
+  return formatQty(q, ing.unit || '');
+}
+
+/* ---------------- Cooking-order logic ---------------- */
+function computeSteps(ingredients){
+  const cookable = ingredients.filter(i => i.name && i.name.trim());
+  if(cookable.length === 0) return {steps:[], totalCookTime:0, hasAtBoil:false};
+  const maxCookTime = Math.max(...cookable.map(i => Number(i.cookTime) || 0));
+  const hasAtBoil = cookable.some(i => (Number(i.cookTime)||0) === 0);
+  const map = {};
+  cookable.forEach(ing=>{
+    const ct = Number(ing.cookTime) || 0;
+    let addAt;
+    if(ct === 0){
+      addAt = 0;
+    }else{
+      addAt = maxCookTime - ct;
+      if(hasAtBoil) addAt += 1;
+    }
+    if(!map[addAt]) map[addAt] = [];
+    map[addAt].push(ing);
+  });
+  const steps = Object.keys(map).map(Number).sort((a,b)=>a-b).map(addAt=>({
+    addAtMin: addAt, ingredients: map[addAt]
+  }));
+  const totalCookTime = maxCookTime + (hasAtBoil ? 1 : 0);
+  return {steps, totalCookTime, hasAtBoil};
+}
+
+/* ---------------- Audio (iOS-safe) ---------------- */
+let audioCtx = null;
+function unlockAudio(){
+  try{
+    if(!audioCtx){
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const buffer = audioCtx.createBuffer(1, 1, 22050);
+      const src = audioCtx.createBufferSource();
+      src.buffer = buffer;
+      src.connect(audioCtx.destination);
+      src.start(0);
+    }else if(audioCtx.state === 'suspended'){
+      audioCtx.resume();
+    }
+  }catch(e){ /* audio unsupported */ }
+}
+document.addEventListener('touchstart', unlockAudio, {passive:true});
+document.addEventListener('click', unlockAudio);
+
+function playChime(){
+  if(!audioCtx) return;
+  if(audioCtx.state === 'suspended') audioCtx.resume();
+  const notes = [523.25, 659.25, 783.99, 1046.50]; // C5 E5 G5 C6
+  notes.forEach((freq, i)=>{
+    const t = audioCtx.currentTime + i * 0.18;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.32, t + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(t);
+    osc.stop(t + 0.19);
+  });
+}
+
+/* ---------------- Time helpers ---------------- */
+function mmss(totalSeconds){
+  const s = Math.max(0, Math.round(totalSeconds));
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return String(m).padStart(2,'0') + ':' + String(sec).padStart(2,'0');
+}
+
+/* ---------------- Rendering ---------------- */
+const app = document.getElementById('app');
+function render(){
+  if(state.screen === 'index') app.innerHTML = renderIndex();
+  else if(state.screen === 'card') app.innerHTML = renderCard();
+  else if(state.screen === 'edit') app.innerHTML = renderEdit();
+  else if(state.screen === 'cook') app.innerHTML = renderCook();
+  window.scrollTo(0,0);
+}
+
+/* ===== Screen 1 : Recipe Index ===== */
+function renderIndex(){
+  const q = state.searchQuery.trim().toLowerCase();
+  let list = state.recipes.slice().sort((a,b)=>a.name.localeCompare(b.name));
+  if(q) list = list.filter(r => r.name.toLowerCase().includes(q));
+
+  let listHtml;
+  if(list.length === 0){
+    listHtml = `
+      <div class="empty-state">
+        <div>No recipes found${q ? ` for “${escapeHtml(state.searchQuery)}”` : ''}.</div>
+        <button class="btn btn-primary" onclick="startNewRecipe()">+ Add “${escapeHtml(state.searchQuery || 'New Recipe')}”</button>
+      </div>`;
+  }else{
+    listHtml = list.map(r => `
+      <div class="recipe-row" onclick="openRecipe('${r.id}')">
+        <div class="rname">${escapeHtml(r.name)}</div>
+        <div class="rmeta">${r.prepTime||0} min prep · ${computeSteps(r.ingredients).totalCookTime} min cook · feeds ${r.numServings||4}</div>
+        ${r.shortNote ? `<div class="rnote">${escapeHtml(r.shortNote)}</div>` : ''}
+      </div>`).join('');
+  }
+
+  return `
+    <div class="brandbar">
+      <h1>TaraGourmet</h1>
+      <p>Recipes, timed to the minute.</p>
+    </div>
+    <div class="content" style="padding-top:0;">
+      <div class="searchwrap">
+        <span>🔍</span>
+        <input type="text" placeholder="Search recipes…" value="${escapeHtml(state.searchQuery)}"
+          oninput="onSearch(this.value)">
+      </div>
+      <div class="guestrow">
+        <div class="label">Guests</div>
+        <div class="stepper">
+          <button onclick="changeGuests(-1)">−</button>
+          <div class="count">${state.guestCount}</div>
+          <button onclick="changeGuests(1)">+</button>
+        </div>
+      </div>
+      <div class="listhead">Recipes (A–Z)</div>
+      ${listHtml}
+    </div>
+    <button class="fab" onclick="startNewRecipe()" aria-label="Add recipe">+</button>
+  `;
+}
+function onSearch(v){ state.searchQuery = v; render(); }
+function changeGuests(delta){
+  state.guestCount = Math.min(50, Math.max(1, state.guestCount + delta));
+  localStorage.setItem(GUEST_KEY, String(state.guestCount));
+  render();
+}
+function openRecipe(id){
+  state.currentRecipeId = id;
+  state.screen = 'card';
+  render();
+}
+
+/* ===== Screen 2 : Recipe Card ===== */
+function renderCard(){
+  const r = state.recipes.find(x => x.id === state.currentRecipeId);
+  if(!r){ state.screen = 'index'; return renderIndex(); }
+  const {steps, totalCookTime, hasAtBoil} = computeSteps(r.ingredients);
+  const catLabel = (CATEGORIES.find(c=>c.id===r.category)||{}).label || '';
+
+  const ingredientsHtml = r.ingredients.map(ing => `
+    <div class="ingredient-line">
+      <span>${escapeHtml(ing.name)}${ing.prepNotes ? `<br><span style="color:var(--ink-soft);font-size:12px;font-style:italic;">${escapeHtml(ing.prepNotes)}</span>` : ''}</span>
+      <span class="amt">${scaledQtyLabel(ing, state.guestCount)}</span>
+    </div>`).join('');
+
+  const stepsHtml = steps.map((step, idx) => {
+    const whenLabel = step.addAtMin === 0
+      ? (hasAtBoil ? 'Before bringing to a boil' : 'At the start')
+      : `At the ${step.addAtMin}-minute mark${hasAtBoil ? ' (after the boil returns)' : ''}`;
+    const itemsHtml = step.ingredients.map(ing => `
+      <div class="stepitem">
+        <span class="amt">${scaledQtyLabel(ing, state.guestCount)}</span> ${escapeHtml(ing.name)}
+        ${ing.prepNotes ? `<div class="prepnote">${escapeHtml(ing.prepNotes)}</div>` : ''}
+      </div>`).join('');
+    return `
+      <div class="step-card">
+        <span class="stepnum">${idx+1}</span><span class="stepwhen">${whenLabel}</span>
+        <div class="stepitems">${itemsHtml}</div>
+        <div class="cooklen">Cooks ${Math.max(...step.ingredients.map(i=>Number(i.cookTime)||0))} min</div>
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="navheader">
+      <button class="navbtn" onclick="goIndex()" aria-label="Home">⌂</button>
+      <div class="navtitle">Recipe</div>
+      <button class="navbtn" onclick="editRecipe('${r.id}')" aria-label="Edit">✎</button>
+    </div>
+    <div class="card-hero">
+      <div class="rname">${escapeHtml(r.name)}${catLabel ? `<span class="badge-servings">${catLabel}</span>`:''}</div>
+      <div class="rmeta">${r.prepTime||0} min prep · feeds ${r.numServings||4} (base) · cooking for ${state.guestCount} guest${state.guestCount===1?'':'s'}</div>
+    </div>
+    <div class="content">
+      ${r.description ? `<div class="desc">${escapeHtml(r.description)}</div>` : ''}
+
+      <div class="section-title">Ingredients</div>
+      <div>${ingredientsHtml || '<div class="desc">No ingredients yet.</div>'}</div>
+
+      <div class="section-title">Cooking Instructions</div>
+      <div class="totalcook">
+        <span>Total cook time</span><span>${totalCookTime} min</span>
+      </div>
+      ${r.instructions ? `<div class="desc" style="margin:12px 0;">${escapeHtml(r.instructions)}</div>` : ''}
+      <div style="margin-top:10px;">${stepsHtml || '<div class="desc">No timed steps yet — add ingredients with cook times.</div>'}</div>
+
+      ${r.specialNotes ? `
+        <div class="section-title">Special Notes</div>
+        <div class="special-notes">${escapeHtml(r.specialNotes)}</div>` : ''}
+    </div>
+    <div class="cookbtn-wrap">
+      <button class="cookbtn" onclick="startCook('${r.id}')">🔥 Let's Cook</button>
+    </div>
+  `;
+}
+function goIndex(){ state.screen = 'index'; render(); }
+
+/* ===== Screen 3 : Add / Edit Recipe ===== */
+function startNewRecipe(){
+  state.editMode = 'new';
+  state.editingId = null;
+  state.draft = {
+    id: uid('r'), name: state.searchQuery || '', category:'entree', prepTime:15, numServings:4,
+    shortNote:'', description:'', ingredients:[emptyIngredient()], instructions:'', specialNotes:''
+  };
+  state.confirmDelete = false;
+  state.screen = 'edit';
+  render();
+}
+function editRecipe(id){
+  const r = state.recipes.find(x=>x.id===id);
+  if(!r) return;
+  state.editMode = 'edit';
+  state.editingId = id;
+  state.draft = JSON.parse(JSON.stringify(r));
+  if(state.draft.ingredients.length === 0) state.draft.ingredients.push(emptyIngredient());
+  state.confirmDelete = false;
+  state.screen = 'edit';
+  render();
+}
+function emptyIngredient(){ return {id: uid('i'), name:'', amount:1, unit:'', cookTime:0, prepNotes:''}; }
+
+function renderEdit(){
+  const d = state.draft;
+  const title = state.editMode === 'new' ? 'New Recipe' : 'Edit Recipe';
+
+  const ingRows = d.ingredients.map((ing, idx) => `
+    <div class="ing-editor">
+      <button class="remove-ing" onclick="removeIngredient(${idx})" aria-label="Remove ingredient">✕</button>
+      <div class="field">
+        <label>Ingredient Name</label>
+        <input type="text" value="${escapeAttr(ing.name)}" placeholder="e.g. large shrimp"
+          oninput="updateIngredient(${idx}, 'name', this.value)">
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>Amount (per guest)</label>
+          <input type="number" step="0.01" min="0" value="${ing.amount}"
+            oninput="updateIngredient(${idx}, 'amount', this.value)">
+        </div>
+        <div class="field">
+          <label>Unit</label>
+          <select onchange="updateIngredient(${idx}, 'unit', this.value)">
+            ${Object.keys(UNIT_LABELS).map(u => `<option value="${u}" ${ing.unit===u?'selected':''}>${u===''?'whole / count':UNIT_LABELS[u]}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Time to Cook (min, 0 = add at the boil / start)</label>
+        <input type="number" min="0" step="1" value="${ing.cookTime}"
+          oninput="updateIngredient(${idx}, 'cookTime', this.value)">
+      </div>
+      <div class="field">
+        <label>Prep Notes</label>
+        <input type="text" value="${escapeAttr(ing.prepNotes)}" placeholder="e.g. deveined, sliced 1-inch"
+          oninput="updateIngredient(${idx}, 'prepNotes', this.value)">
+      </div>
+    </div>
+  `).join('');
+
+  return `
+    <div class="navheader">
+      <button class="navbtn" onclick="goIndex()" aria-label="Home">⌂</button>
+      <div class="navtitle">${title}</div>
+      ${state.editMode==='edit' ? `<button class="navbtn" onclick="viewFromEdit()" aria-label="Back to recipe">📋</button>` : `<div class="navspacer"></div>`}
+    </div>
+    <div class="content">
+      <div class="field">
+        <label>Recipe Name</label>
+        <input type="text" value="${escapeAttr(d.name)}" oninput="updateDraft('name', this.value)">
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>Category</label>
+          <select onchange="updateDraft('category', this.value)">
+            ${CATEGORIES.map(c => `<option value="${c.id}" ${d.category===c.id?'selected':''}>${c.label}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field">
+          <label>Prep Time (min)</label>
+          <input type="number" min="0" value="${d.prepTime}" oninput="updateDraft('prepTime', this.value)">
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>Base Servings (feeds)</label>
+          <input type="number" min="1" value="${d.numServings}" oninput="updateDraft('numServings', this.value)">
+        </div>
+        <div class="field">
+          <label>Cook Time (auto)</label>
+          <input type="text" value="${computeSteps(d.ingredients).totalCookTime} min" disabled style="color:var(--ink-soft);">
+        </div>
+      </div>
+      <div class="field">
+        <label>Short Note</label>
+        <input type="text" value="${escapeAttr(d.shortNote)}" placeholder="One line, shown in the index"
+          oninput="updateDraft('shortNote', this.value)">
+      </div>
+      <div class="field">
+        <label>Description</label>
+        <textarea oninput="updateDraft('description', this.value)">${escapeHtml(d.description)}</textarea>
+      </div>
+
+      <div class="section-title">Ingredients</div>
+      ${ingRows}
+      <button class="add-ing-btn" onclick="addIngredient()">+ Add Ingredient</button>
+
+      <div class="field">
+        <label>Cooking Instructions</label>
+        <textarea oninput="updateDraft('instructions', this.value)">${escapeHtml(d.instructions)}</textarea>
+      </div>
+      <div class="field">
+        <label>Special Notes</label>
+        <textarea oninput="updateDraft('specialNotes', this.value)" placeholder="How to thicken/thin, elevation adjustments, etc.">${escapeHtml(d.specialNotes)}</textarea>
+      </div>
+    </div>
+
+    <div class="footer-actions">
+      <button class="btn save-btn" onclick="saveDraft()">Add to Recipe Index</button>
+      ${state.editMode==='edit' ? `<button class="delete-btn" onclick="askDelete()" aria-label="Delete recipe">🗑</button>` : ''}
+    </div>
+
+    ${state.confirmDelete ? `
+      <div class="modal-backdrop" onclick="if(event.target===this) cancelDelete()">
+        <div class="modal">
+          <h3>Delete this recipe?</h3>
+          <p>This can't be undone. “${escapeHtml(d.name)}” will be removed from the index.</p>
+          <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="cancelDelete()">Cancel</button>
+            <button class="btn" style="background:#C8401A;color:#fff;" onclick="confirmDelete()">Delete</button>
+          </div>
+        </div>
+      </div>` : ''}
+  `;
+}
+function updateDraft(field, value){
+  if(field==='prepTime' || field==='numServings') value = Number(value) || 0;
+  state.draft[field] = value;
+  render();
+}
+function updateIngredient(idx, field, value){
+  if(field==='amount' || field==='cookTime') value = Number(value) || 0;
+  state.draft.ingredients[idx][field] = value;
+  render();
+}
+function addIngredient(){
+  state.draft.ingredients.push(emptyIngredient());
+  render();
+}
+function removeIngredient(idx){
+  state.draft.ingredients.splice(idx,1);
+  if(state.draft.ingredients.length===0) state.draft.ingredients.push(emptyIngredient());
+  render();
+}
+function viewFromEdit(){
+  state.currentRecipeId = state.editingId;
+  state.screen = 'card';
+  render();
+}
+function saveDraft(){
+  const d = state.draft;
+  if(!d.name || !d.name.trim()){ alert('Please give the recipe a name.'); return; }
+  d.ingredients = d.ingredients.filter(i => i.name && i.name.trim());
+  if(state.editMode === 'new'){
+    state.recipes.push(d);
+  }else{
+    const i = state.recipes.findIndex(r=>r.id===d.id);
+    if(i>-1) state.recipes[i] = d;
+  }
+  saveRecipes(state.recipes);
+  state.currentRecipeId = d.id;
+  state.screen = 'card';
+  render();
+}
+function askDelete(){ state.confirmDelete = true; render(); }
+function cancelDelete(){ state.confirmDelete = false; render(); }
+function confirmDelete(){
+  state.recipes = state.recipes.filter(r => r.id !== state.editingId);
+  saveRecipes(state.recipes);
+  state.confirmDelete = false;
+  state.screen = 'index';
+  render();
+}
+
+/* ===== Screen 4 : Cooking Instructions ===== */
+function startCook(id){
+  const r = state.recipes.find(x=>x.id===id);
+  if(!r) return;
+  const {steps, totalCookTime, hasAtBoil} = computeSteps(r.ingredients);
+  const preItems = (steps.find(s=>s.addAtMin===0) || {ingredients:[]}).ingredients;
+  const timedSteps = steps.filter(s=>s.addAtMin>0);
+  state.cook = {
+    recipeId: id,
+    steps, timedSteps, totalCookTime, hasAtBoil,
+    preItems,
+    timerStarted:false,
+    startTs:null,
+    elapsedSec:0,
+    addedSteps:{},        // addAtMin -> true
+    activeAlert:null,     // addAtMin currently shown
+    alertQueue:[],
+    done:false,
+    intervalId:null
+  };
+  state.screen = 'cook';
+  render();
+  clearInterval(state.cook.intervalId);
+  state.cook.intervalId = setInterval(tickCook, 250);
+}
+function stopCook(){
+  if(state.cook && state.cook.intervalId) clearInterval(state.cook.intervalId);
+  state.cook = null;
+  state.screen = 'index';
+  render();
+}
+function armTimer(){
+  const c = state.cook;
+  c.timerStarted = true;
+  c.startTs = Date.now();
+  render();
+}
+function tickCook(){
+  const c = state.cook;
+  if(!c || !c.timerStarted) return;
+  c.elapsedSec = (Date.now() - c.startTs) / 1000;
+  const elapsedMin = c.elapsedSec / 60;
+
+  c.timedSteps.forEach(step=>{
+    if(!c.addedSteps[step.addAtMin] && !c.alertQueue.includes(step.addAtMin) && c.activeAlert !== step.addAtMin){
+      if(elapsedMin >= step.addAtMin - 0.0001){
+        c.alertQueue.push(step.addAtMin);
+      }
+    }
+  });
+  if(!c.activeAlert && c.alertQueue.length){
+    c.activeAlert = c.alertQueue.shift();
+    playChime();
+  }
+  const allDone = c.timedSteps.every(s => c.addedSteps[s.addAtMin]) && elapsedMin >= c.totalCookTime - 0.02;
+  if(allDone && !c.done){
+    c.done = true;
+  }
+  render();
+}
+function dismissAlert(addAtMin){
+  const c = state.cook;
+  c.addedSteps[addAtMin] = true;
+  c.activeAlert = null;
+  render();
+}
+function dismissPrecook(){
+  armTimer();
+}
+
+function renderCook(){
+  const c = state.cook;
+  if(!c){ state.screen='index'; return renderIndex(); }
+  const r = state.recipes.find(x=>x.id===c.recipeId);
+  const guests = state.guestCount;
+
+  let precookBanner = '';
+  if(!c.timerStarted){
+    const itemsHtml = c.preItems.map(ing => `
+      <div class="bitem"><span class="amt">${scaledQtyLabel(ing, guests)}</span> ${escapeHtml(ing.name)}</div>
+    `).join('') || '<div class="bitem">Bring your water to a rolling boil.</div>';
+    precookBanner = `
+      <div class="banner precook">
+        <div class="btitle">Before You Start</div>
+        ${itemsHtml}
+        <button onclick="dismissPrecook()">✓ Added — Start Timer!</button>
+      </div>`;
+  }
+
+  let alertBanner = '';
+  if(c.timerStarted && c.activeAlert !== null){
+    const step = c.timedSteps.find(s=>s.addAtMin===c.activeAlert);
+    const itemsHtml = step.ingredients.map(ing => `
+      <div class="bitem"><span class="amt">${scaledQtyLabel(ing, guests)}</span> ${escapeHtml(ing.name)}</div>
+    `).join('');
+    alertBanner = `
+      <div class="banner alert">
+        <div class="btitle">Add Now</div>
+        ${itemsHtml}
+        <button onclick="dismissAlert(${c.activeAlert})">✓ Added it!</button>
+      </div>`;
+  }
+
+  let doneBanner = '';
+  if(c.done){
+    doneBanner = `
+      <div class="banner done">
+        <div class="btitle">All Done!</div>
+        <div class="bitem">Everything's cooked and ready to plate. Enjoy 🍽</div>
+      </div>`;
+  }
+
+  let nextUp = '';
+  const remaining = c.timerStarted ? c.timedSteps.filter(s => !c.addedSteps[s.addAtMin] && s.addAtMin !== c.activeAlert) : c.timedSteps;
+  if(c.timerStarted && remaining.length){
+    const next = remaining[0];
+    const secsLeft = Math.max(0, next.addAtMin*60 - c.elapsedSec);
+    nextUp = `
+      <div class="nextup">
+        <div>
+          <div class="nlabel">Next Up</div>
+          <div class="nname">${escapeHtml(next.ingredients.map(i=>i.name).join(', '))}</div>
+        </div>
+        <div class="ncount">${mmss(secsLeft)}</div>
+      </div>`;
+  }
+
+  const liveList = c.timedSteps.map(step=>{
+    const added = !!c.addedSteps[step.addAtMin];
+    const secsLeft = step.addAtMin*60 - c.elapsedSec;
+    let whenLabel;
+    if(added) whenLabel = 'Added ✓';
+    else if(!c.timerStarted) whenLabel = `at ${step.addAtMin} min`;
+    else if(secsLeft <= 0) whenLabel = 'now';
+    else whenLabel = mmss(secsLeft) + ' left';
+    return `
+      <div class="livestep ${added?'added':''}">
+        <span class="lname">${escapeHtml(step.ingredients.map(i=>i.name).join(', '))}</span>
+        <span class="lwhen">${whenLabel}</span>
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="navheader">
+      <button class="navbtn" onclick="stopCook()" aria-label="Home">⌂</button>
+      <div class="navtitle">${escapeHtml(r ? r.name : 'Cooking')}</div>
+      <button class="navbtn" onclick="backToCardFromCook()" aria-label="Recipe">📋</button>
+    </div>
+    <div class="cookheader">
+      <div class="clock">${mmss(c.elapsedSec)}</div>
+      <div class="clock-label">${c.timerStarted ? 'Elapsed' : 'Timer not started'}</div>
+    </div>
+    ${precookBanner}
+    ${alertBanner}
+    ${doneBanner}
+    ${nextUp}
+    <div class="livelist">${liveList}</div>
+    <div class="chefnote">Note to Chef — cooking is hot work, stay hydrated with a glass of wine!</div>
+    <div class="stopbtn-wrap">
+      <button class="stopbtn" onclick="stopCook()">✕ Stop Cook</button>
+    </div>
+  `;
+}
+function backToCardFromCook(){
+  if(state.cook && state.cook.intervalId) clearInterval(state.cook.intervalId);
+  state.currentRecipeId = state.cook ? state.cook.recipeId : state.currentRecipeId;
+  state.cook = null;
+  state.screen = 'card';
+  render();
+}
+
+/* ---------------- utils ---------------- */
+function escapeHtml(str){
+  return String(str==null?'':str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function escapeAttr(str){
+  return escapeHtml(str).replace(/"/g,'&quot;');
+}
+
+/* ---------------- boot ---------------- */
+render();
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
