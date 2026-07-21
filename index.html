@@ -8,6 +8,7 @@
 <meta name="theme-color" content="#0033A0">
 <title>TaraGourmet</title>
 <link rel="manifest" href="manifest.json">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{
     --primary:#0033A0;
@@ -276,6 +277,47 @@
   .badge-servings{
     display:inline-block; background:rgba(255,255,255,.16); border-radius:8px; padding:2px 8px; font-size:12px; margin-left:6px;
   }
+
+  /* ---------- Boot / Auth ---------- */
+  .boot-wrap{
+    flex:1; display:flex; align-items:center; justify-content:center; flex-direction:column; min-height:100vh; color:var(--ink-soft);
+  }
+  .boot-flame{font-size:34px; margin-bottom:10px;}
+  .auth-wrap{
+    flex:1; display:flex; flex-direction:column; justify-content:center; min-height:100vh; padding:26px 22px;
+  }
+  .auth-brand{text-align:center; margin-bottom:26px;}
+  .auth-brand .flame{font-size:38px;}
+  .auth-brand h1{margin:8px 0 2px; font-size:26px; font-weight:800; color:var(--primary);}
+  .auth-brand p{margin:0; font-size:13px; color:var(--ink-soft);}
+  .auth-card{
+    background:var(--card); border:1px solid var(--line); border-radius:16px; padding:20px;
+    box-shadow:0 6px 20px rgba(0,0,0,.05);
+  }
+  .auth-card h2{margin:0 0 4px; font-size:19px;}
+  .auth-card .auth-sub{margin:0 0 16px; font-size:13px; color:var(--ink-soft);}
+  .auth-error{
+    background:var(--alert-bg); border:1px solid var(--alert-border); color:#8a2c11; border-radius:10px;
+    padding:10px 12px; font-size:13px; margin-bottom:14px;
+  }
+  .auth-info{
+    background:var(--precook-bg); border:1px solid var(--precook-border); color:#6b4c07; border-radius:10px;
+    padding:10px 12px; font-size:13px; margin-bottom:14px;
+  }
+  .auth-submit{width:100%; background:var(--primary); color:#fff; margin-top:4px;}
+  .auth-submit:disabled{opacity:.6;}
+  .auth-switch{text-align:center; margin-top:16px; font-size:13.5px; color:var(--ink-soft);}
+  .auth-switch button{background:none; border:none; color:var(--primary); font-weight:700; font-size:13.5px; cursor:pointer; padding:0;}
+  .account-btn{
+    background:rgba(255,255,255,.16); border:none; color:#fff; width:34px; height:34px; border-radius:17px;
+    display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:800; cursor:pointer;
+  }
+  .brandbar-top{display:flex; align-items:flex-start; justify-content:space-between;}
+  .inline-spinner{
+    display:inline-block; width:14px; height:14px; border:2px solid rgba(255,255,255,.4); border-top-color:#fff;
+    border-radius:50%; animation:spin .7s linear infinite; vertical-align:-2px; margin-right:6px;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
 </style>
 </head>
 <body>
@@ -285,10 +327,18 @@
 <script>
 /* ============================================================
    TaraGourmet — mobile-first recipe & guided-cooking app
-   Data store: localStorage today (drop-in shape for Firebase later)
+   Data store: Supabase (Postgres + Auth)
    ============================================================ */
 
-const STORAGE_KEY = 'taragourmet_recipes_v1';
+/* ---- Supabase project config ----
+   Replace with your own project's values (Project Settings → API).
+   The anon/public key is safe to expose client-side; row-level
+   security (see schema.sql) is what actually protects the data. */
+const SUPABASE_URL = 'https://YOUR-PROJECT.supabase.co';
+const SUPABASE_ANON_KEY = 'YOUR-ANON-PUBLIC-KEY';
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 const GUEST_KEY = 'taragourmet_guest_count_v1';
 
 const UNIT_LABELS = {
@@ -307,11 +357,11 @@ const CATEGORIES = [
   {id:'dessert',label:'Dessert'},{id:'cocktail',label:'Cocktail'},{id:'other',label:'Other'}
 ];
 
-/* ---------------- Seed data ---------------- */
-function seedRecipes(){
+/* ---------------- Starter recipes (offered on first sign-up) ---------------- */
+function starterRecipes(){
   return [
     {
-      id:'r-shrimp-boil', name:'Low-Country Shrimp Boil', category:'entree',
+      name:'Low-Country Shrimp Boil', category:'entree',
       prepTime:15, numServings:4,
       shortNote:'One-pot classic, timed to the minute',
       description:'A single stockpot of corn, potatoes, sausage and shrimp, added in order so everything finishes together.',
@@ -327,7 +377,7 @@ function seedRecipes(){
       specialNotes:'At elevations above 5,000 ft, water boils cooler — add 2–3 minutes to the potatoes. To thicken the finishing butter, whisk in a cornstarch slurry off heat; to thin it, add a splash of the cooking liquid.'
     },
     {
-      id:'r-pasta-primavera', name:'Weeknight Pasta Primavera', category:'entree',
+      name:'Weeknight Pasta Primavera', category:'entree',
       prepTime:10, numServings:4,
       shortNote:'Bright, veg-forward, ready in 20',
       description:'Pasta and quick-cooking vegetables cooked in the same pot, staggered so nothing turns to mush.',
@@ -345,26 +395,78 @@ function seedRecipes(){
   ];
 }
 
-/* ---------------- Data layer ---------------- */
-function loadRecipes(){
-  try{
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if(!raw){
-      const seeded = seedRecipes();
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(seeded));
-      return seeded;
-    }
-    return JSON.parse(raw);
-  }catch(e){ return seedRecipes(); }
+/* ---------------- Data layer (Supabase) ---------------- */
+function rowToRecipe(row){
+  return {
+    id: row.id,
+    name: row.name,
+    category: row.category,
+    prepTime: row.prep_time,
+    numServings: row.num_servings,
+    shortNote: row.short_note,
+    description: row.description,
+    ingredients: row.ingredients || [],
+    instructions: row.instructions,
+    specialNotes: row.special_notes
+  };
 }
-function saveRecipes(list){
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+function recipeToRow(r){
+  return {
+    name: r.name,
+    category: r.category,
+    prep_time: r.prepTime,
+    num_servings: r.numServings,
+    short_note: r.shortNote,
+    description: r.description,
+    ingredients: r.ingredients,
+    instructions: r.instructions,
+    special_notes: r.specialNotes,
+    user_id: state.session.user.id
+  };
+}
+async function refreshRecipes(){
+  state.recipesLoading = true; render();
+  const { data, error } = await sb.from('recipes').select('*').order('name');
+  state.recipesLoading = false;
+  if(error){
+    console.error(error);
+    state.recipes = [];
+    render();
+    return;
+  }
+  state.recipes = (data || []).map(rowToRecipe);
+  if(state.recipes.length === 0 && !state.starterOffered){
+    state.starterOffered = true;
+    await seedStarterRecipes();
+    return;
+  }
+  render();
+}
+async function seedStarterRecipes(){
+  const rows = starterRecipes().map(r => recipeToRow(r));
+  const { error } = await sb.from('recipes').insert(rows);
+  if(error) console.error('Could not seed starter recipes:', error);
+  const { data } = await sb.from('recipes').select('*').order('name');
+  state.recipes = (data || []).map(rowToRecipe);
+  render();
 }
 
 /* ---------------- App state ---------------- */
 let state = {
-  screen: 'index',            // index | card | edit | cook
-  recipes: loadRecipes(),
+  screen: 'boot',             // boot | auth | index | card | edit | cook
+  session: null,
+  authMode: 'signin',         // signin | signup
+  authEmail: '',
+  authPassword: '',
+  authError: '',
+  authInfo: '',
+  authLoading: false,
+  starterOffered: false,
+  showAccountModal: false,
+
+  recipes: [],
+  recipesLoading: false,
+  savingDraft: false,
   guestCount: parseInt(localStorage.getItem(GUEST_KEY) || '4', 10),
   searchQuery: '',
   currentRecipeId: null,
@@ -485,11 +587,122 @@ function mmss(totalSeconds){
 /* ---------------- Rendering ---------------- */
 const app = document.getElementById('app');
 function render(){
-  if(state.screen === 'index') app.innerHTML = renderIndex();
+  if(state.screen === 'boot') app.innerHTML = renderBoot();
+  else if(state.screen === 'auth') app.innerHTML = renderAuth();
+  else if(state.screen === 'index') app.innerHTML = renderIndex();
   else if(state.screen === 'card') app.innerHTML = renderCard();
   else if(state.screen === 'edit') app.innerHTML = renderEdit();
   else if(state.screen === 'cook') app.innerHTML = renderCook();
   window.scrollTo(0,0);
+}
+
+/* ===== Screen 0 : Boot & Auth ===== */
+function renderBoot(){
+  return `
+    <div class="boot-wrap">
+      <div class="boot-flame">🔥</div>
+      <div>Loading TaraGourmet…</div>
+    </div>`;
+}
+function renderAuth(){
+  const isSignUp = state.authMode === 'signup';
+  return `
+    <div class="auth-wrap">
+      <div class="auth-brand">
+        <div class="flame">🔥</div>
+        <h1>TaraGourmet</h1>
+        <p>Recipes, timed to the minute.</p>
+      </div>
+      <div class="auth-card">
+        <h2>${isSignUp ? 'Create your account' : 'Welcome back'}</h2>
+        <p class="auth-sub">${isSignUp ? 'Your recipes stay private to your account.' : 'Sign in to see your recipes.'}</p>
+        ${state.authError ? `<div class="auth-error">${escapeHtml(state.authError)}</div>` : ''}
+        ${state.authInfo ? `<div class="auth-info">${escapeHtml(state.authInfo)}</div>` : ''}
+        <div class="field">
+          <label>Email</label>
+          <input type="text" inputmode="email" autocomplete="email" value="${escapeAttr(state.authEmail)}"
+            oninput="updateAuthField('authEmail', this.value)">
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input type="password" autocomplete="${isSignUp ? 'new-password' : 'current-password'}" value="${escapeAttr(state.authPassword)}"
+            oninput="updateAuthField('authPassword', this.value)">
+        </div>
+        <button class="btn auth-submit" ${state.authLoading ? 'disabled' : ''} onclick="submitAuth()">
+          ${state.authLoading ? '<span class="inline-spinner"></span>' : ''}${isSignUp ? 'Sign Up' : 'Sign In'}
+        </button>
+        <div class="auth-switch">
+          ${isSignUp ? 'Already have an account?' : "Don't have an account?"}
+          <button onclick="toggleAuthMode()">${isSignUp ? 'Sign in' : 'Sign up'}</button>
+        </div>
+      </div>
+    </div>`;
+}
+function updateAuthField(field, value){
+  state[field] = value;
+  state.authError = '';
+}
+function toggleAuthMode(){
+  state.authMode = state.authMode === 'signin' ? 'signup' : 'signin';
+  state.authError = '';
+  state.authInfo = '';
+  render();
+}
+async function submitAuth(){
+  const email = state.authEmail.trim();
+  const password = state.authPassword;
+  if(!email || !password){
+    state.authError = 'Enter both an email and a password.';
+    render();
+    return;
+  }
+  state.authLoading = true;
+  state.authError = '';
+  render();
+  let result;
+  if(state.authMode === 'signup'){
+    result = await sb.auth.signUp({ email, password });
+  }else{
+    result = await sb.auth.signInWithPassword({ email, password });
+  }
+  state.authLoading = false;
+  if(result.error){
+    state.authError = result.error.message;
+    render();
+    return;
+  }
+  if(state.authMode === 'signup' && !result.data.session){
+    state.authInfo = 'Check your email to confirm your account, then sign in.';
+    state.authMode = 'signin';
+    state.authPassword = '';
+    render();
+    return;
+  }
+  state.session = result.data.session;
+  state.authPassword = '';
+  state.screen = 'index';
+  await refreshRecipes();
+}
+async function signOut(){
+  state.showAccountModal = false;
+  await sb.auth.signOut();
+}
+function openAccountModal(){ state.showAccountModal = true; render(); }
+function closeAccountModal(){ state.showAccountModal = false; render(); }
+function renderAccountModal(){
+  if(!state.showAccountModal) return '';
+  const email = state.session && state.session.user ? state.session.user.email : '';
+  return `
+    <div class="modal-backdrop" onclick="if(event.target===this) closeAccountModal()">
+      <div class="modal">
+        <h3>Account</h3>
+        <p>Signed in as ${escapeHtml(email)}</p>
+        <div class="modal-actions">
+          <button class="btn btn-secondary" onclick="closeAccountModal()">Close</button>
+          <button class="btn" style="background:#C8401A;color:#fff;" onclick="signOut()">Sign Out</button>
+        </div>
+      </div>
+    </div>`;
 }
 
 /* ===== Screen 1 : Recipe Index ===== */
@@ -516,8 +729,13 @@ function renderIndex(){
 
   return `
     <div class="brandbar">
-      <h1>TaraGourmet</h1>
-      <p>Recipes, timed to the minute.</p>
+      <div class="brandbar-top">
+        <div>
+          <h1>TaraGourmet</h1>
+          <p>Recipes, timed to the minute.</p>
+        </div>
+        <button class="account-btn" onclick="openAccountModal()" aria-label="Account">${escapeHtml(accountInitial())}</button>
+      </div>
     </div>
     <div class="content" style="padding-top:0;">
       <div class="searchwrap">
@@ -534,10 +752,15 @@ function renderIndex(){
         </div>
       </div>
       <div class="listhead">Recipes (A–Z)</div>
-      ${listHtml}
+      ${state.recipesLoading ? '<div class="empty-state">Loading your recipes…</div>' : listHtml}
     </div>
     <button class="fab" onclick="startNewRecipe()" aria-label="Add recipe">+</button>
+    ${renderAccountModal()}
   `;
+}
+function accountInitial(){
+  const email = state.session && state.session.user ? state.session.user.email : '';
+  return email ? email[0].toUpperCase() : '?';
 }
 function onSearch(v){ state.searchQuery = v; render(); }
 function changeGuests(delta){
@@ -620,7 +843,7 @@ function startNewRecipe(){
   state.editMode = 'new';
   state.editingId = null;
   state.draft = {
-    id: uid('r'), name: state.searchQuery || '', category:'entree', prepTime:15, numServings:4,
+    id: null, name: state.searchQuery || '', category:'entree', prepTime:15, numServings:4,
     shortNote:'', description:'', ingredients:[emptyIngredient()], instructions:'', specialNotes:''
   };
   state.confirmDelete = false;
@@ -736,7 +959,9 @@ function renderEdit(){
     </div>
 
     <div class="footer-actions">
-      <button class="btn save-btn" onclick="saveDraft()">Add to Recipe Index</button>
+      <button class="btn save-btn" ${state.savingDraft ? 'disabled' : ''} onclick="saveDraft()">
+        ${state.savingDraft ? '<span class="inline-spinner" style="border-color:rgba(0,0,0,.25);border-top-color:#fff;"></span>Saving…' : 'Add to Recipe Index'}
+      </button>
       ${state.editMode==='edit' ? `<button class="delete-btn" onclick="askDelete()" aria-label="Delete recipe">🗑</button>` : ''}
     </div>
 
@@ -777,27 +1002,40 @@ function viewFromEdit(){
   state.screen = 'card';
   render();
 }
-function saveDraft(){
+async function saveDraft(){
   const d = state.draft;
   if(!d.name || !d.name.trim()){ alert('Please give the recipe a name.'); return; }
   d.ingredients = d.ingredients.filter(i => i.name && i.name.trim());
+  state.savingDraft = true;
+  render();
   if(state.editMode === 'new'){
-    state.recipes.push(d);
+    const { data, error } = await sb.from('recipes').insert(recipeToRow(d)).select().single();
+    state.savingDraft = false;
+    if(error){ alert('Could not save recipe: ' + error.message); render(); return; }
+    const saved = rowToRecipe(data);
+    state.recipes.push(saved);
+    state.currentRecipeId = saved.id;
   }else{
-    const i = state.recipes.findIndex(r=>r.id===d.id);
-    if(i>-1) state.recipes[i] = d;
+    const { data, error } = await sb.from('recipes').update(recipeToRow(d)).eq('id', d.id).select().single();
+    state.savingDraft = false;
+    if(error){ alert('Could not update recipe: ' + error.message); render(); return; }
+    const saved = rowToRecipe(data);
+    const i = state.recipes.findIndex(r => r.id === saved.id);
+    if(i > -1) state.recipes[i] = saved;
+    state.currentRecipeId = saved.id;
   }
-  saveRecipes(state.recipes);
-  state.currentRecipeId = d.id;
   state.screen = 'card';
   render();
 }
 function askDelete(){ state.confirmDelete = true; render(); }
 function cancelDelete(){ state.confirmDelete = false; render(); }
-function confirmDelete(){
-  state.recipes = state.recipes.filter(r => r.id !== state.editingId);
-  saveRecipes(state.recipes);
+async function confirmDelete(){
+  const id = state.editingId;
   state.confirmDelete = false;
+  render();
+  const { error } = await sb.from('recipes').delete().eq('id', id);
+  if(error){ alert('Could not delete recipe: ' + error.message); render(); return; }
+  state.recipes = state.recipes.filter(r => r.id !== id);
   state.screen = 'index';
   render();
 }
@@ -983,7 +1221,33 @@ function escapeAttr(str){
 }
 
 /* ---------------- boot ---------------- */
-render();
+async function boot(){
+  render(); // show boot screen immediately
+  const { data: { session } } = await sb.auth.getSession();
+  state.session = session;
+  if(session){
+    state.screen = 'index';
+    await refreshRecipes();
+  }else{
+    state.screen = 'auth';
+    render();
+  }
+
+  sb.auth.onAuthStateChange((event, session) => {
+    const hadSession = !!state.session;
+    state.session = session;
+    if(session && !hadSession){
+      state.screen = 'index';
+      refreshRecipes();
+    }else if(!session && hadSession){
+      state.screen = 'auth';
+      state.recipes = [];
+      state.starterOffered = false;
+      render();
+    }
+  });
+}
+boot();
 
 if('serviceWorker' in navigator){
   window.addEventListener('load', ()=>{
